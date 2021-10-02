@@ -5,6 +5,20 @@
  */
 package com.moloud.questionanswering;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
+
 /**
  *
  * @author mabas
@@ -12,10 +26,51 @@ package com.moloud.questionanswering;
 public class MainForm extends javax.swing.JFrame {
 
     /**
+     * @param DATASET position of data set
+     * @param classes key is the answer and value is a list of questions
+     */
+    private static final String DATASET = "F:/AI/nlp/QuestionAnswering/dataset/dataset.xml";
+    private HashMap<String, ArrayList<String>> classes = new HashMap<String, ArrayList<String>>();
+
+    /**
      * Creates new form MainForm
      */
     public MainForm() {
         initComponents();
+        initialVariables();
+    }
+
+    /**
+     * read data set from local storage and initial variables
+     */
+    public void initialVariables() {
+        DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
+        try {
+            documentBuilderFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
+            Document document = documentBuilder.parse(new File(DATASET));
+            document.getDocumentElement().normalize();
+
+            NodeList queries = document.getElementsByTagName("Query");
+            for (int index = 0; index < queries.getLength(); index++) {
+                Node query = queries.item(index);
+                if (query.getNodeType() == Node.ELEMENT_NODE) {
+                    Element element = (Element) query;
+                    String question = element.getElementsByTagName("Question").item(0).getTextContent();
+                    String answer = element.getElementsByTagName("acceptable-answer").item(0).getTextContent();
+                    if (classes.get(answer) != null) {
+                        classes.get(answer).add(question);
+                    } else {
+                        classes.put(answer, new ArrayList<String>());
+                    }
+                }
+            }
+            for (String i : classes.keySet()) {
+                System.out.println(i);
+            }
+        } catch (ParserConfigurationException | SAXException | IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
