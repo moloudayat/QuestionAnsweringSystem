@@ -5,11 +5,17 @@
  */
 package com.moloud.questionanswering;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.swing.JOptionPane;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -31,9 +37,13 @@ public class MainForm extends javax.swing.JFrame {
      * @param classes key is the answer and value is a list of questions
      */
     private static final String DATASET = "F:/AI/nlp/QuestionAnswering/dataset/dataset.xml";
+    private static final String STOP_WORDS = "F:/AI/nlp/QuestionAnswering/dataset/stopwords.xml";
+    private String[] stopWords;
     private HashMap<String, ArrayList<String>> classes = new HashMap<String, ArrayList<String>>();
     private HashMap<String, ArrayList<String>> train = new HashMap<String, ArrayList<String>>();
     private HashMap<String, ArrayList<String>> test = new HashMap<String, ArrayList<String>>();
+    private HashMap<String, ArrayList<String>> processedTrain = new HashMap<String, ArrayList<String>>();
+    private HashMap<String, ArrayList<String>> processedTest = new HashMap<String, ArrayList<String>>();
 
     /**
      * Creates new form MainForm
@@ -41,6 +51,7 @@ public class MainForm extends javax.swing.JFrame {
     public MainForm() {
         initComponents();
         getDataset();
+        getStopWords();
     }
 
     /**
@@ -77,6 +88,32 @@ public class MainForm extends javax.swing.JFrame {
     }
 
     /**
+     * get stop words from local storage we calculated stop words by sorting all
+     * the words on 25 documents regard to different regulations
+     */
+    public void getStopWords() {
+        DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
+        try {
+            documentBuilderFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
+            Document document = documentBuilder.parse(new File(STOP_WORDS));
+            document.getDocumentElement().normalize();
+
+            NodeList nodeList = document.getElementsByTagName("root");
+            Node node = nodeList.item(0);
+            if (node.getNodeType() == Node.ELEMENT_NODE) {
+                Element element = (Element) node;
+                String words = element.getElementsByTagName("Words").item(0).getTextContent();
+                stopWords = words.split("[ \n\t\r.,;:!?(){}]");
+                System.out.println(stopWords);
+            }
+
+        } catch (ParserConfigurationException | SAXException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
      * calculate train and test sets the total number of answers is 117 size of
      * the train's set is more than 75% of real database size of the test's set
      * is near 25% of real database there is a possibility for unadequet train
@@ -99,6 +136,8 @@ public class MainForm extends javax.swing.JFrame {
                     testQuestions.add(classes.get(answer).get(1));
                     train.put(answer, trainQuestions);
                     test.put(answer, testQuestions);
+                    processedTrain.put(answer, trainQuestions);
+                    processedTest.put(answer, testQuestions);
                     break;
                 case 3:
                     trainQuestions.add(classes.get(answer).get(2));
@@ -106,6 +145,8 @@ public class MainForm extends javax.swing.JFrame {
                     testQuestions.add(classes.get(answer).get(0));
                     train.put(answer, trainQuestions);
                     test.put(answer, testQuestions);
+                    processedTrain.put(answer, trainQuestions);
+                    processedTest.put(answer, testQuestions);
                     break;
                 case 4:
                     trainQuestions.add(classes.get(answer).get(3));
@@ -114,6 +155,8 @@ public class MainForm extends javax.swing.JFrame {
                     testQuestions.add(classes.get(answer).get(0));
                     train.put(answer, trainQuestions);
                     test.put(answer, testQuestions);
+                    processedTrain.put(answer, trainQuestions);
+                    processedTest.put(answer, testQuestions);
                     break;
                 default:
                     int trainSize = (int) (classes.get(answer).size() * 0.75);
@@ -126,6 +169,8 @@ public class MainForm extends javax.swing.JFrame {
                     }
                     train.put(answer, trainQuestions);
                     test.put(answer, testQuestions);
+                    processedTrain.put(answer, trainQuestions);
+                    processedTest.put(answer, testQuestions);
             }
 
         }
@@ -141,6 +186,8 @@ public class MainForm extends javax.swing.JFrame {
     public void modifiedTrainTestSet() {
         train.clear();
         test.clear();
+        processedTrain.clear();
+        processedTest.clear();
         ArrayList<String> trainQuestions = new ArrayList<String>();
         ArrayList<String> testQuestions = new ArrayList<String>();
         for (String answer : classes.keySet()) {
@@ -157,8 +204,56 @@ public class MainForm extends javax.swing.JFrame {
                 }
                 train.put(answer, trainQuestions);
                 test.put(answer, testQuestions);
+                processedTrain.put(answer, trainQuestions);
+                processedTest.put(answer, testQuestions);
             }
         }
+        System.out.println(train.size());
+        System.out.println(test.size());
+    }
+
+    /**
+     * in this preprocessing method change all the letter in Arabic or other
+     * language similar to Persian into persian letter a good example of this
+     * preprocessing can be seen in English letter é would be converted to e
+     */
+    private String unification(String str) {
+        str = str.replace(". ", ".");
+        str = str.replace("..", "");
+        str = str.replace(":", "");
+        str = str.replace("؟", "");
+        str = str.replace("؟", "");
+        str = str.replace("?", "");
+        str = str.replace("،", "");
+        str = str.replace("؛", "");
+        str = str.replace(" .", ".");
+        str = str.replace(") ", " ");
+        str = str.replace(")", " ");
+        str = str.replace(" )", " ");
+        str = str.replace("( ", " ");
+        str = str.replace("(", " ");
+        str = str.replace(" (", " ");
+        str = str.replace("  ", " ");
+        str = str.replace("   ", " ");
+        str = str.replace("\n", "");
+        str = str.replace("ك", "ک");
+        str = str.replace("ي", "ی");
+        str = str.replace("ئ", "ی");
+        str = str.replace("ؤ", "و");
+        str = str.replace("ء", "");
+        str = str.replace("\n", "");
+        str = str.replace("-", "");
+        str = str.replace("- ", "");
+        str = str.replace(" -", "");
+        str = str.replace("[", "");
+        str = str.replace("]", "");
+        str = str.replace("{", "");
+        str = str.replace("}", "");
+        str = str.replace("  ", "");
+        str = str.replace("  ", "");
+        str = str.replace("أ", "ا");
+        str = str.replace("ــ", "");
+        return str;
     }
 
     /**
@@ -182,6 +277,9 @@ public class MainForm extends javax.swing.JFrame {
         jPanel2 = new javax.swing.JPanel();
         jRadioButton1 = new javax.swing.JRadioButton();
         jRadioButton2 = new javax.swing.JRadioButton();
+        jPanel3 = new javax.swing.JPanel();
+        checkBox_stopword = new javax.swing.JCheckBox();
+        checkBox_unification = new javax.swing.JCheckBox();
 
         jMenuItem1.setText("jMenuItem1");
 
@@ -244,9 +342,9 @@ public class MainForm extends javax.swing.JFrame {
                 .addComponent(jLabel1)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 78, Short.MAX_VALUE)
                 .addComponent(jButton1)
-                .addGap(38, 38, 38)
-                .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 7, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(26, 26, 26)
+                .addGap(31, 31, 31)
+                .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 22, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
                 .addComponent(txt_question, javax.swing.GroupLayout.PREFERRED_SIZE, 153, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(42, 42, 42))
             .addGroup(jLayeredPane1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -306,6 +404,43 @@ public class MainForm extends javax.swing.JFrame {
                 .addContainerGap(35, Short.MAX_VALUE))
         );
 
+        jPanel3.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)), "Preprocessing"));
+
+        checkBox_stopword.setText("remove stopwords");
+        checkBox_stopword.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                checkBox_stopwordActionPerformed(evt);
+            }
+        });
+
+        checkBox_unification.setText("unification");
+        checkBox_unification.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                checkBox_unificationActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(checkBox_stopword)
+                    .addComponent(checkBox_unification))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addGap(24, 24, 24)
+                .addComponent(checkBox_unification, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(checkBox_stopword)
+                .addContainerGap(38, Short.MAX_VALUE))
+        );
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -316,7 +451,9 @@ public class MainForm extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jLayeredPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -334,6 +471,8 @@ public class MainForm extends javax.swing.JFrame {
                             .addGroup(layout.createSequentialGroup()
                                 .addGap(28, 28, 28)
                                 .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(17, 17, 17)
+                        .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
         );
@@ -359,6 +498,84 @@ public class MainForm extends javax.swing.JFrame {
         modifiedTrainTestSet();
     }//GEN-LAST:event_jRadioButton2ActionPerformed
 
+    private void checkBox_stopwordActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBox_stopwordActionPerformed
+        if (checkBox_stopword.isSelected()) {
+            HashMap<String, ArrayList<String>> tempTrain = new HashMap<String, ArrayList<String>>();
+            HashMap<String, ArrayList<String>> tempTest = new HashMap<String, ArrayList<String>>();
+            for (String answer : processedTrain.keySet()) {
+                String proccedAnswer = answer;
+                ArrayList<String> proccedQuestions = new ArrayList<String>();
+                for (String question : processedTrain.get(answer)) {
+                    for (String word : stopWords) {
+                        question = question.replaceAll(word, "");
+                    }
+                    proccedQuestions.add(question);
+                }
+                for (String word : stopWords) {
+                    proccedAnswer = proccedAnswer.replaceAll(word, "");
+                }
+                tempTrain.put(proccedAnswer, proccedQuestions);
+            }
+            for (String answer : processedTest.keySet()) {
+                String proccedAnswer = answer;
+                ArrayList<String> proccedQuestions = new ArrayList<String>();
+                for (String question : processedTest.get(answer)) {
+                    for (String word : stopWords) {
+                        question = question.replaceAll(word, "");
+                    }
+                    proccedQuestions.add(question);
+                }
+                for (String word : stopWords) {
+                    proccedAnswer = proccedAnswer.replaceAll(word, "");
+                }
+                tempTest.put(proccedAnswer, proccedQuestions);
+            }
+            processedTrain.clear();
+            processedTest.clear();
+            processedTrain.putAll(tempTrain);
+            processedTest.putAll(tempTest);
+        } else {
+            processedTrain.clear();
+            processedTest.clear();
+            processedTrain.putAll(train);
+            processedTest.putAll(test);
+        }
+    }//GEN-LAST:event_checkBox_stopwordActionPerformed
+
+    private void checkBox_unificationActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_checkBox_unificationActionPerformed
+        if (checkBox_unification.isSelected()) {
+            HashMap<String, ArrayList<String>> tempTrain = new HashMap<String, ArrayList<String>>();
+            HashMap<String, ArrayList<String>> tempTest = new HashMap<String, ArrayList<String>>();
+            for (String answer : processedTrain.keySet()) {
+                String proccedAnswer = answer;
+                ArrayList<String> proccedQuestions = new ArrayList<String>();
+                for (String question : processedTrain.get(answer)) {
+                    proccedQuestions.add(unification(question));
+                }
+                proccedAnswer = unification(answer);
+                tempTrain.put(proccedAnswer, proccedQuestions);
+            }
+           for (String answer : processedTest.keySet()) {
+                String proccedAnswer = answer;
+                ArrayList<String> proccedQuestions = new ArrayList<String>();
+                for (String question : processedTest.get(answer)) {
+                    proccedQuestions.add(unification(question));
+                }
+                proccedAnswer = unification(answer);
+                tempTrain.put(proccedAnswer, proccedQuestions);
+            }
+            processedTrain.clear();
+            processedTest.clear();
+            processedTrain.putAll(tempTrain);
+            processedTest.putAll(tempTest);
+        } else {
+            processedTrain.clear();
+            processedTest.clear();
+            processedTrain.putAll(train);
+            processedTest.putAll(test);
+        }
+    }//GEN-LAST:event_checkBox_unificationActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -375,6 +592,8 @@ public class MainForm extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.ButtonGroup buttonGroup1;
+    private javax.swing.JCheckBox checkBox_stopword;
+    private javax.swing.JCheckBox checkBox_unification;
     private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
@@ -382,6 +601,7 @@ public class MainForm extends javax.swing.JFrame {
     private javax.swing.JMenuItem jMenuItem1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
     private javax.swing.JRadioButton jRadioButton1;
     private javax.swing.JRadioButton jRadioButton2;
     private javax.swing.JTextField txt_question;
