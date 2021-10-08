@@ -44,6 +44,9 @@ public class MainForm extends javax.swing.JFrame {
     private HashMap<String, ArrayList<String>> test = new HashMap<String, ArrayList<String>>();
     private HashMap<String, ArrayList<String>> processedTrain = new HashMap<String, ArrayList<String>>();
     private HashMap<String, ArrayList<String>> processedTest = new HashMap<String, ArrayList<String>>();
+    private HashMap<String, ArrayList<Integer[]>> trainFeatureVector = new HashMap<String, ArrayList<Integer[]>>();
+    private HashMap<String, ArrayList<Integer[]>> testFeatureVector = new HashMap<String, ArrayList<Integer[]>>();
+    private HashMap<String, Integer> features = new HashMap<String, Integer>();
 
     /**
      * Creates new form MainForm
@@ -256,6 +259,69 @@ public class MainForm extends javax.swing.JFrame {
         return str;
     }
 
+   /**
+     * this function find every word on every questions in train set, then build
+     * the feature vector. after that, find number of occurrence of each word on
+     * questions on both train and test sets
+     */
+    public void buildUnigrams() {
+        // calculate all the words inquestion
+        trainFeatureVector.clear();
+        features.clear();
+        for (String answer : processedTrain.keySet()) {
+            for (String question : processedTrain.get(answer)) {
+                String[] questionWords = question.split(" ");
+                for (String word : questionWords) {
+                    if (features.get(word) == null) {
+                        features.put(word, 1);
+                    }
+                }
+            }
+        }
+        for (String answer : processedTrain.keySet()) {
+            ArrayList<Integer[]> questions = new ArrayList<Integer[]>();
+            for (String question : processedTrain.get(answer)) {
+                String[] questionWords = question.split(" ");
+                Integer[] questionFeatureVector = new Integer[features.size()];
+                for (int itrator = 0; itrator < questionFeatureVector.length; itrator++) {
+                    questionFeatureVector[itrator] = 0;
+                }
+                int index = 0;
+                for (String word : features.keySet()) {
+                    for (String questionWord : questionWords) {
+                        if (word.equals(questionWord)) {
+                            questionFeatureVector[index] = questionFeatureVector[index] + 1;
+                        }
+                    }
+                    index++;
+                }
+                questions.add(questionFeatureVector);
+            }
+            trainFeatureVector.put(answer, questions);
+        }
+        for (String answer : processedTest.keySet()) {
+            ArrayList<Integer[]> questions = new ArrayList<Integer[]>();
+            for (String question : processedTest.get(answer)) {
+                String[] questionWords = question.split(" ");
+                Integer[] questionFeatureVector = new Integer[features.size()];
+                for (int itrator = 0; itrator < questionFeatureVector.length; itrator++) {
+                    questionFeatureVector[itrator] = 0;
+                }
+                int index = 0;
+                for (String word : features.keySet()) {
+                    for (String questionWord : questionWords) {
+                        if (word.equals(questionWord)) {
+                            questionFeatureVector[index] = questionFeatureVector[index] + 1;
+                        }
+                    }
+                    index++;
+                }
+                questions.add(questionFeatureVector);
+            }
+            testFeatureVector.put(answer, questions);
+        }
+    }
+
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -280,6 +346,11 @@ public class MainForm extends javax.swing.JFrame {
         jPanel3 = new javax.swing.JPanel();
         checkBox_stopword = new javax.swing.JCheckBox();
         checkBox_unification = new javax.swing.JCheckBox();
+        jPanel5 = new javax.swing.JPanel();
+        rbtn_unigram = new javax.swing.JRadioButton();
+        jRadioButton3 = new javax.swing.JRadioButton();
+        jRadioButton4 = new javax.swing.JRadioButton();
+        jRadioButton5 = new javax.swing.JRadioButton();
 
         jMenuItem1.setText("jMenuItem1");
 
