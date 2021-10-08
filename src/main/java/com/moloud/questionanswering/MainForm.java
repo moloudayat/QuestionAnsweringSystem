@@ -34,7 +34,17 @@ public class MainForm extends javax.swing.JFrame {
 
     /**
      * @param DATASET position of data set
+     * @param STOP_WORDS location of stop words
+     * @param stopWords list of stopwords
      * @param classes key is the answer and value is a list of questions
+     * @param train a hash table that answers are the keies and questions regardig to 
+     * the kies are vaues
+     * @param test same as train set   
+     * @param processedTrain the train set after preprocessing
+     * @param processedTest same as processedTrain
+     * @param trainFeatureVector all the feature vectors of train questions
+     * @param testFeatureVector all the feature vectors of test questions
+     * @param features feature vectors
      */
     private static final String DATASET = "F:/AI/nlp/QuestionAnswering/dataset/dataset.xml";
     private static final String STOP_WORDS = "F:/AI/nlp/QuestionAnswering/dataset/stopwords.xml";
