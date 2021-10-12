@@ -6,16 +6,15 @@
 package com.moloud.questionanswering;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
-import javax.swing.JOptionPane;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -25,8 +24,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
+import weka.classifiers.Evaluation;
+import weka.classifiers.bayes.NaiveBayes;
+import weka.classifiers.functions.Logistic;
 import weka.core.*;
-
 /**
  *
  * @author mabas
@@ -38,10 +39,10 @@ public class MainForm extends javax.swing.JFrame {
      * @param STOP_WORDS location of stop words
      * @param stopWords list of stopwords
      * @param classes key is the answer and value is a list of questions
-     * @param train a hash table that answers are the keies and questions regardig to 
-     * the kies are vaues
-     * @param test same as train set   
-     * @param processedTrain the train set after preprocessing
+     * @param train a hash table that answers are the keys and questions
+     * regardig to the keys are values
+     * @param test same as train set
+     * @param processedTrain the train set after preProcessing
      * @param processedTest same as processedTrain
      * @param trainFeatureVector all the feature vectors of train questions
      * @param testFeatureVector all the feature vectors of test questions
@@ -49,6 +50,8 @@ public class MainForm extends javax.swing.JFrame {
      */
     private static final String DATASET = "F:/AI/nlp/QuestionAnswering/dataset/dataset.xml";
     private static final String STOP_WORDS = "F:/AI/nlp/QuestionAnswering/dataset/stopwords.xml";
+    private static final String TRAIN_ARFF = "F:/AI/nlp/QuestionAnswering/train.arff";
+    private static final String TEST_ARFF = "F:/AI/nlp/QuestionAnswering/test.arff";
     private String[] stopWords;
     private HashMap<String, ArrayList<String>> classes = new HashMap<String, ArrayList<String>>();
     private HashMap<String, ArrayList<String>> train = new HashMap<String, ArrayList<String>>();
@@ -58,6 +61,7 @@ public class MainForm extends javax.swing.JFrame {
     private HashMap<String, ArrayList<Integer[]>> trainFeatureVector = new HashMap<String, ArrayList<Integer[]>>();
     private HashMap<String, ArrayList<Integer[]>> testFeatureVector = new HashMap<String, ArrayList<Integer[]>>();
     private HashMap<String, Integer> features = new HashMap<String, Integer>();
+    private String[] answers;
 
     /**
      * Creates new form MainForm
@@ -186,7 +190,11 @@ public class MainForm extends javax.swing.JFrame {
                     processedTrain.put(answer, trainQuestions);
                     processedTest.put(answer, testQuestions);
             }
-
+        }
+        answers = new String[train.size()];
+        int index = 0;
+        for (String answer : train.keySet()) {
+            answers[index++] = answer;
         }
         System.out.println(train.size());
         System.out.println(test.size());
@@ -221,6 +229,11 @@ public class MainForm extends javax.swing.JFrame {
                 processedTrain.put(answer, trainQuestions);
                 processedTest.put(answer, testQuestions);
             }
+        }
+        answers = new String[train.size()];
+        int index = 0;
+        for (String answer : train.keySet()) {
+            answers[index++] = answer;
         }
         System.out.println(train.size());
         System.out.println(test.size());
@@ -270,45 +283,50 @@ public class MainForm extends javax.swing.JFrame {
         return str;
     }
 
-   /**
+    /**
      * this function find every word on every questions in train set, then build
      * the feature vector. after that, find number of occurrence of each word on
-     * questions on both train and test sets
+     * questions on both train and test sets. then for train and test sets build
+     * arff files
      */
     public void buildUnigrams() {
         // calculate all the words inquestion
         trainFeatureVector.clear();
         features.clear();
-        for (String answer : processedTrain.keySet()) {
-            for (String question : processedTrain.get(answer)) {
-                String[] questionWords = question.split(" ");
-                for (String word : questionWords) {
-                    if (features.get(word) == null) {
-                        features.put(word, 1);
+        for (int itrator = 0; itrator < answers.length; itrator++) {
+            if (processedTrain.get(answers[itrator]) != null) {
+                for (String question : processedTrain.get(answers[itrator])) {
+                    String[] questionWords = question.split(" ");
+                    for (String word : questionWords) {
+                        if (features.get(word) == null) {
+                            features.put(word, 1);
+                        }
                     }
                 }
             }
         }
-        for (String answer : processedTrain.keySet()) {
+        for (int itrator1 = 0; itrator1 < answers.length; itrator1++) {
             ArrayList<Integer[]> questions = new ArrayList<Integer[]>();
-            for (String question : processedTrain.get(answer)) {
-                String[] questionWords = question.split(" ");
-                Integer[] questionFeatureVector = new Integer[features.size()];
-                for (int itrator = 0; itrator < questionFeatureVector.length; itrator++) {
-                    questionFeatureVector[itrator] = 0;
-                }
-                int index = 0;
-                for (String word : features.keySet()) {
-                    for (String questionWord : questionWords) {
-                        if (word.equals(questionWord)) {
-                            questionFeatureVector[index] = questionFeatureVector[index] + 1;
-                        }
+            if (processedTrain.get(answers[itrator1]) != null) {
+                for (String question : processedTrain.get(answers[itrator1])) {
+                    String[] questionWords = question.split(" ");
+                    Integer[] questionFeatureVector = new Integer[features.size()];
+                    for (int itrator = 0; itrator < questionFeatureVector.length; itrator++) {
+                        questionFeatureVector[itrator] = 0;
                     }
-                    index++;
+                    int index = 0;
+                    for (String word : features.keySet()) {
+                        for (String questionWord : questionWords) {
+                            if (word.equals(questionWord)) {
+                                questionFeatureVector[index] = questionFeatureVector[index] + 1;
+                            }
+                        }
+                        index++;
+                    }
+                    questions.add(questionFeatureVector);
                 }
-                questions.add(questionFeatureVector);
+                trainFeatureVector.put(answers[itrator1], questions);
             }
-            trainFeatureVector.put(answer, questions);
         }
         for (String answer : processedTest.keySet()) {
             ArrayList<Integer[]> questions = new ArrayList<Integer[]>();
@@ -331,6 +349,76 @@ public class MainForm extends javax.swing.JFrame {
             }
             testFeatureVector.put(answer, questions);
         }
+        try {
+            BufferedWriter trainFile = new BufferedWriter(new FileWriter("train.arff"));
+            trainFile.write("@relation train");
+            trainFile.write(System.getProperty("line.separator"));
+            trainFile.write(System.getProperty("line.separator"));
+            int attribute = 1;
+            for (String word : features.keySet()) {
+                trainFile.write("@attribute feature" + attribute + " numeric");
+                attribute++;
+                trainFile.write(System.getProperty("line.separator"));
+            }
+            trainFile.write("@attribute class {");
+            for (int iterator = 0; iterator < answers.length - 1; iterator++) {
+                trainFile.write("answer" + iterator + " ,");
+            }
+            trainFile.write(answers.length - 1 + "}");
+            trainFile.write(System.getProperty("line.separator"));
+            trainFile.write(System.getProperty("line.separator"));
+            trainFile.write("@data");
+            trainFile.write(System.getProperty("line.separator"));
+            for (int iterator = 0; iterator < answers.length - 1; iterator++) {
+                if (trainFeatureVector.get(answers[iterator]) != null) {
+                    for (Integer[] questionVector : trainFeatureVector.get(answers[iterator])) {
+                        for (int index = 0; index < questionVector.length; index++) {
+                            trainFile.write(questionVector[index] + ",");
+                        }
+                        trainFile.write("answer" + iterator);
+                        trainFile.write(System.getProperty("line.separator"));
+                    }
+                }
+            }
+            trainFile.close();
+        } catch (IOException ex) {
+            Logger.getLogger(MainForm.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        try {
+            BufferedWriter testFile = new BufferedWriter(new FileWriter("test.arff"));
+            testFile.write("@relation test");
+            testFile.write(System.getProperty("line.separator"));
+            testFile.write(System.getProperty("line.separator"));
+            int attribute = 1;
+            for (String word : features.keySet()) {
+                testFile.write("@attribute feature" + attribute + " numeric");
+                attribute++;
+                testFile.write(System.getProperty("line.separator"));
+            }
+            testFile.write("@attribute class {");
+            for (int iterator = 0; iterator < answers.length - 1; iterator++) {
+                testFile.write("answer" + iterator + " ,");
+            }
+            testFile.write(answers.length - 1 + "}");
+            testFile.write(System.getProperty("line.separator"));
+            testFile.write(System.getProperty("line.separator"));
+            testFile.write("@data");
+            testFile.write(System.getProperty("line.separator"));
+            for (int iterator = 0; iterator < answers.length - 1; iterator++) {
+                if (testFeatureVector.get(answers[iterator]) != null) {
+                    for (Integer[] questionVector : testFeatureVector.get(answers[iterator])) {
+                        for (int index = 0; index < questionVector.length; index++) {
+                            testFile.write(questionVector[index] + ",");
+                        }
+                        testFile.write("answer" + iterator);
+                        testFile.write(System.getProperty("line.separator"));
+                    }
+                }
+            }
+            testFile.close();
+        } catch (IOException ex) {
+            Logger.getLogger(MainForm.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     /**
@@ -351,6 +439,11 @@ public class MainForm extends javax.swing.JFrame {
         jLabel2 = new javax.swing.JLabel();
         jButton1 = new javax.swing.JButton();
         jPanel1 = new javax.swing.JPanel();
+        rbn_logestic = new javax.swing.JRadioButton();
+        rbn_naiveBayse = new javax.swing.JRadioButton();
+        etxt_percision = new javax.swing.JTextField();
+        jLabel3 = new javax.swing.JLabel();
+        jLabel4 = new javax.swing.JLabel();
         jPanel2 = new javax.swing.JPanel();
         jRadioButton1 = new javax.swing.JRadioButton();
         jRadioButton2 = new javax.swing.JRadioButton();
@@ -387,7 +480,7 @@ public class MainForm extends javax.swing.JFrame {
         jLabel2.setText("here is your answer");
         jLabel2.setName("Please ask your question?"); // NOI18N
 
-        jButton1.setText("jButton1");
+        jButton1.setText("answer");
 
         jLayeredPane1.setLayer(txt_question, javax.swing.JLayeredPane.DEFAULT_LAYER);
         jLayeredPane1.setLayer(jLabel1, javax.swing.JLayeredPane.DEFAULT_LAYER);
@@ -436,15 +529,60 @@ public class MainForm extends javax.swing.JFrame {
                     .addContainerGap(312, Short.MAX_VALUE)))
         );
 
+        jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)), "Classifire"));
+
+        rbn_logestic.setText("Logestic");
+        rbn_logestic.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                rbn_logesticActionPerformed(evt);
+            }
+        });
+
+        rbn_naiveBayse.setText("Naive Bayse");
+        rbn_naiveBayse.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                rbn_naiveBayseActionPerformed(evt);
+            }
+        });
+
+        etxt_percision.setEditable(false);
+        etxt_percision.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+        etxt_percision.setSelectionColor(new java.awt.Color(0, 0, 0));
+
+        jLabel3.setText("percision:");
+
+        jLabel4.setText("%");
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 100, Short.MAX_VALUE)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(rbn_logestic)
+                    .addComponent(rbn_naiveBayse)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(jLabel3)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jLabel4)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(etxt_percision, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addContainerGap(20, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 100, Short.MAX_VALUE)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(rbn_logestic)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(rbn_naiveBayse)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(etxt_percision, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel3)
+                    .addComponent(jLabel4))
+                .addContainerGap())
         );
 
         jPanel2.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)), "Database", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.TOP));
@@ -474,7 +612,7 @@ public class MainForm extends javax.swing.JFrame {
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jRadioButton2)
                     .addComponent(jRadioButton1))
-                .addContainerGap(40, Short.MAX_VALUE))
+                .addContainerGap(78, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -571,9 +709,9 @@ public class MainForm extends javax.swing.JFrame {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(124, 124, 124)
+                .addContainerGap()
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGap(18, 18, 18)
                 .addComponent(jLayeredPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(24, 24, 24)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -584,25 +722,19 @@ public class MainForm extends javax.swing.JFrame {
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                 .addGap(0, 23, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(18, 18, 18)
-                                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(18, 18, 18)
-                                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(18, 18, 18)
+                        .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(18, 18, 18)
                         .addComponent(jPanel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                    .addComponent(jLayeredPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jLayeredPane1, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(16, 16, 16))
         );
-
-        jPanel2.getAccessibleContext().setAccessibleName("Database");
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
@@ -707,6 +839,55 @@ public class MainForm extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_rbtn_unigramActionPerformed
 
+    private void rbn_logesticActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_rbn_logesticActionPerformed
+        if (rbn_logestic.isSelected()) {
+            try {
+                Instances trainSet = new Instances(new BufferedReader(new FileReader(TRAIN_ARFF)));
+                Instances testSet = new Instances(new BufferedReader(new FileReader(TEST_ARFF)));
+                trainSet.setClassIndex(trainSet.numAttributes() - 1);
+                testSet.setClassIndex(testSet.numAttributes() - 1);
+                Logistic logistic = new Logistic();
+                System.out.print("Training on " + trainSet.size() + " examples... ");
+                logistic.buildClassifier(trainSet);
+                System.out.println("done.");
+                Evaluation eval = new Evaluation(testSet);
+                eval.evaluateModel(logistic, testSet);
+                System.out.println(eval.toSummaryString("\nResults\n======\n", true));
+
+            } catch (Exception ex) {
+                Logger.getLogger(MainForm.class.getName()).log(Level.SEVERE, null, ex);
+                System.err.println("Unable to train classifier.");
+                System.err.println("\t" + ex.getMessage());
+            }
+        }
+    }//GEN-LAST:event_rbn_logesticActionPerformed
+
+    private void rbn_naiveBayseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_rbn_naiveBayseActionPerformed
+        if (rbn_naiveBayse.isSelected()) {
+            try {
+                Instances trainSet = new Instances(new BufferedReader(new FileReader(TRAIN_ARFF)));
+                Instances testSet = new Instances(new BufferedReader(new FileReader(TEST_ARFF)));
+                trainSet.setClassIndex(trainSet.numAttributes() - 1);
+                testSet.setClassIndex(testSet.numAttributes() - 1);
+                NaiveBayes naiveBayes = new NaiveBayes();
+                System.out.print("Training on " + trainSet.size() + " examples... ");
+                naiveBayes.buildClassifier(trainSet);
+                System.out.println("done.");
+                Evaluation eval = new Evaluation(testSet);
+                eval.evaluateModel(naiveBayes, testSet);
+//                etxt_percision.add(Double.toString(eval.pctCorrect()));
+
+etxt_percision.setText(String.format("%.2f", eval.pctCorrect()));
+                System.out.println(eval.pctCorrect());
+
+            } catch (Exception ex) {
+                Logger.getLogger(MainForm.class.getName()).log(Level.SEVERE, null, ex);
+                System.err.println("Unable to train classifier.");
+                System.err.println("\t" + ex.getMessage());
+            }
+        }
+    }//GEN-LAST:event_rbn_naiveBayseActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -725,9 +906,12 @@ public class MainForm extends javax.swing.JFrame {
     private javax.swing.ButtonGroup buttonGroup1;
     private javax.swing.JCheckBox checkBox_stopword;
     private javax.swing.JCheckBox checkBox_unification;
+    private javax.swing.JTextField etxt_percision;
     private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
     private javax.swing.JLayeredPane jLayeredPane1;
     private javax.swing.JMenuItem jMenuItem1;
     private javax.swing.JPanel jPanel1;
@@ -739,6 +923,8 @@ public class MainForm extends javax.swing.JFrame {
     private javax.swing.JRadioButton jRadioButton3;
     private javax.swing.JRadioButton jRadioButton4;
     private javax.swing.JRadioButton jRadioButton5;
+    private javax.swing.JRadioButton rbn_logestic;
+    private javax.swing.JRadioButton rbn_naiveBayse;
     private javax.swing.JRadioButton rbtn_unigram;
     private javax.swing.JTextField txt_question;
     private javax.swing.JTextField txt_question1;
